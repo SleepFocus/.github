@@ -1,0 +1,87 @@
+services:
+  redis:
+    image: redis
+    container_name: sleepfocus-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api-service:
+    build:
+      context: .
+      dockerfile: SleepFocus_Backend_v2/Dockerfile
+    container_name: sleepfocus-api
+    environment:
+      MONGOURI: ${MONGOURI}
+      JWT_SECRET: ${JWT_SECRET}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID}
+      SKIP_APPLE_IDENTITY_VERIFY: ${SKIP_APPLE_IDENTITY_VERIFY:-false}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PIPELINE_QUEUE_NAME: pipeline_jobs_v2
+      MODEL_API_URL: http://sleepfocus-labeler:8008
+      LLM_API_URL: ${LLM_API_URL:-http://host.docker.internal:8000/v1/chat/completions}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-mlx-community/SmolLM3-3B-4bit}
+      SCORING_DRIVER: ${SCORING_DRIVER:-cli}
+      PYTHON_BIN: python3
+      MODEL_CLI_MODULE: sleepfocus_model
+      MODEL_WORKDIR: /opt/sleepfocus-model
+      SCORING_CMD_TIMEOUT_MS: ${SCORING_CMD_TIMEOUT_MS:-600000}
+      PORT: 3005
+    ports:
+      - "3005:3005"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  sleepfocus-worker:
+    build:
+      context: .
+      dockerfile: SleepFocus_Backend_v2/Dockerfile
+    container_name: sleepfocus-worker
+    command: ["node", "./dist/src/worker.js"]
+    environment:
+      MONGOURI: ${MONGOURI}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PIPELINE_QUEUE_NAME: pipeline_jobs_v2
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      SCORING_DRIVER: ${SCORING_DRIVER:-cli}
+      PYTHON_BIN: python3
+      MODEL_CLI_MODULE: sleepfocus_model
+      MODEL_WORKDIR: /opt/sleepfocus-model
+      SCORING_CMD_TIMEOUT_MS: ${SCORING_CMD_TIMEOUT_MS:-600000}
+      MODEL_API_URL: http://sleepfocus-labeler:8008
+      LLM_API_URL: ${LLM_API_URL:-http://host.docker.internal:8000/v1/chat/completions}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-mlx-community/SmolLM3-3B-4bit}
+    depends_on:
+      redis:
+        condition: service_healthy
+      sleepfocus-labeler:
+        condition: service_started
+
+  sleepfocus-labeler:
+    build:
+      context: ./SleepFocus_Model
+      dockerfile: Dockerfile
+    container_name: labeler
+    command: ["python3", "-m", "sleepfocus_model.api.server"]
+    environment:
+      MONGOURI: ${MONGOURI}
+      PORT: 8008
+      LLM_API_URL: ${LLM_API_URL:-http://host.docker.internal:8000/v1/chat/completions}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-mlx-community/SmolLM3-3B-4bit}
+    ports:
+      - "8008:8008"
+    depends_on:
+      redis:
+        condition: service_healthy

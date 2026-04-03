@@ -1,0 +1,6 @@
+[submodule "SleepFocus_Model"]
+	path = SleepFocus_Model
+	url = git@github.com:SleepFocus/SleepFocus_Model_v3.git
+[submodule "SleepFocus_Backend"]
+	path = SleepFocus_Backend
+	url = git@github.com:SleepFocus/SleepFocus_Backend_v2.git
