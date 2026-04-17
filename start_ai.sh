@@ -1,1 +1,1 @@
-vllm-mlx serve mlx-community/Llama-3.2-3B-Instruct-4bit --port 8000 --continuous-batching
+vllm-mlx serve mlx-community/Qwen3-8B-4bit --port 8000 --continuous-batching
