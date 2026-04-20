@@ -9,8 +9,7 @@ Internal implementation repositories are not public. This repo keeps the integra
 
 ## Architecture Diagram
 
-![SleepFocus system architecture](../img/design2.png)
-
+<img src="../img/design2.png" width="500">
 
 ### 1) Client-Side
 - **iOS App** [SleepFocus_Frontend](https://github.com/SleepFocus/SleepFocus_Frontend)
@@ -48,5 +47,6 @@ Related repositories in this workspace:
 
 ## Application Images
 
-![SleepFocus system architecture](../img/sleepfocus1.png)
+<img src="../img/sleepfocus1.jpeg" width="250">
+
 
